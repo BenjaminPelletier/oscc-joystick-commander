@@ -180,21 +180,37 @@ static int get_normalized_position( unsigned long axis_index, double * const nor
 
     int axis_position = 0;
 
+    static const float deadzone = 0.3;
+
     return_code = joystick_get_axis( axis_index, &axis_position );
 
     if ( return_code == OSCC_OK )
     {
+        // this is between -1.0 and 1.0
+        double raw_normalized_position = ((double) axis_position / INT16_MAX);
+
         if ( axis_index == JOYSTICK_AXIS_STEER )
         {
-            ( *normalized_position ) = CONSTRAIN(
-            ((double) axis_position) / INT16_MAX,
-            -1.0,
-            1.0);
+            // if axis is in deadzone, do nothing
+            if ( fabs(raw_normalized_position) < deadzone)
+            {
+                ( *normalized_position ) = 0.0;
+            }
+            else
+            {
+                // normalize over non deadzone range
+                raw_normalized_position *= (fabs(raw_normalized_position) - deadzone) / (1.0 - deadzone);
+
+                ( *normalized_position ) = CONSTRAIN(
+                raw_normalized_position,
+                -1.0,
+                1.0);   
+            }
         }
         else
-        {
+        {        
             ( *normalized_position ) = CONSTRAIN(
-            ((double) axis_position) / INT16_MAX,
+            raw_normalized_position,
             0.0, 
             1.0);
         }
@@ -315,14 +331,9 @@ static int command_brakes( )
 
         if ( return_code == OSCC_OK && normalized_position >= 0.0 )
         {
-            average = calc_exponential_average(
-                average,
-                normalized_position,
-                BRAKE_FILTER_FACTOR );
+            printf("%f, ", normalized_position);
 
-            printf("Brake:\t%f\n", average);
-
-            return_code = oscc_publish_brake_position( average );
+            return_code = oscc_publish_brake_position( normalized_position );
         }
     }
 
@@ -359,14 +370,9 @@ static int command_throttle( )
 
         if ( return_code == OSCC_OK && normalized_throttle_position >= 0.0 )
         {
-            average = calc_exponential_average(
-                average,
-                normalized_throttle_position,
-                THROTTLE_FILTER_FACTOR );
+            printf("%f, ", normalized_throttle_position);
 
-            printf("Throttle:\t%f\n", average);
-
-            return_code = oscc_publish_throttle_position( average );
+            return_code = oscc_publish_throttle_position( normalized_throttle_position );
         }
     }
 
@@ -391,12 +397,9 @@ static int command_steering( )
 
         if( return_code == OSCC_OK )
         {
-            average = calc_exponential_average(
-                average,
-                normalized_position,
-                STEERING_FILTER_FACTOR);
+            printf("%f\n", normalized_position);
 
-            return_code = oscc_publish_steering_torque( average );
+            return_code = oscc_publish_steering_torque( normalized_position * 0.25 );
         }
 
 
@@ -477,7 +480,10 @@ static double calc_exponential_average( double average,
                                         double factor )
 {
     double exponential_average =
-        ( setpoint * factor ) + ( ( 1.0 - factor ) * average );
+        ( setpoint * (1.0 - factor )) + ( factor * average );
+
+    // double exponential_average =
+    //     ( setpoint * factor ) + ( (1.0 - factor ) * average );
 
     return ( exponential_average );
 }
