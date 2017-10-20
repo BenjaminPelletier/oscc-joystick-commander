@@ -1,0 +1,4 @@
+[submodule "oscc"]
+	path = oscc
+	url = https://github.com/PolySync/oscc
+	branch = master
