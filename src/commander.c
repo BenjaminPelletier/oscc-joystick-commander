@@ -72,7 +72,9 @@ int commander_init( int channel )
         if ( return_code != OSCC_ERROR )
         {
             // register callback handlers
+			printf("Subscribing to obd messages\n");
             oscc_subscribe_to_obd_messages(obd_callback);
+			printf("Subscribed to obd messages.\n");
             oscc_subscribe_to_brake_reports(brake_callback);
             oscc_subscribe_to_steering_reports(steering_callback);
             oscc_subscribe_to_throttle_reports(throttle_callback);
@@ -489,11 +491,14 @@ static void fault_callback(oscc_fault_report_s *report)
 // data fields and the CAN_ID.
 static void obd_callback(struct can_frame *frame)
 {
+    printf("obd_callback invoked\n");
     if ( frame->can_id == KIA_SOUL_OBD_STEERING_WHEEL_ANGLE_CAN_ID )
     {
         kia_soul_obd_steering_wheel_angle_data_s * steering_data = (kia_soul_obd_steering_wheel_angle_data_s*) frame->data;
 
         curr_angle = steering_data->steering_wheel_angle * KIA_SOUL_OBD_STEERING_ANGLE_SCALAR;
+		
+		printf("Steering angle: %.4f\n", curr_angle);
     }
 }
 
